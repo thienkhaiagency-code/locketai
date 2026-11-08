@@ -1,0 +1,62 @@
+#!name = Locket Gold - iutdyy
+#!desc = Crack Locket Gold, AI Filter, Photobooth (iutdyy)
+#!author = iutdyy
+#!homepage = https://github.com/iutdyy
+
+[Rule]
+# Chặn QUIC/UDP cho Locket
+AND,((DOMAIN,firebaseremoteconfig.googleapis.com),(PROTOCOL,UDP)),REJECT
+AND,((DOMAIN,api.revenuecat.com),(PROTOCOL,UDP)),REJECT
+AND,((DOMAIN,api.locketcamera.com),(PROTOCOL,UDP)),REJECT
+AND,((DOMAIN-SUFFIX,locketcamera.com),(PROTOCOL,UDP)),REJECT
+
+# Chặn Sentry
+DOMAIN-SUFFIX,sentry.io,REJECT
+DOMAIN-SUFFIX,ingest.sentry.io,REJECT
+
+[Host]
+firebaseremoteconfigrealtime.googleapis.com = 0.0.0.0
+
+[Header Rewrite]
+# Xóa Cache / ETag trên RevenueCat
+http-request ^https?:\/\/api\.revenuecat\.com\/.+\/(receipts|subscribers) header-remove x-revenuecat-etag
+http-request ^https?:\/\/api\.revenuecat\.com\/.+\/(receipts|subscribers) header-remove X-RevenueCat-ETag
+http-request ^https?:\/\/api\.revenuecat\.com\/.+\/(receipts|subscribers) header-remove if-none-match
+http-request ^https?:\/\/api\.revenuecat\.com\/.+\/(receipts|subscribers) header-remove If-None-Match
+http-request ^https?:\/\/api\.revenuecat\.com\/.+\/(receipts|subscribers) header-remove if-modified-since
+http-request ^https?:\/\/api\.revenuecat\.com\/.+\/(receipts|subscribers) header-remove If-Modified-Since
+
+# Xóa Cache / ETag trên Firebase Remote Config
+http-request ^https?:\/\/firebaseremoteconfig\.googleapis\.com\/v1\/projects\/locket-4252a\/.+ header-remove if-none-match
+http-request ^https?:\/\/firebaseremoteconfig\.googleapis\.com\/v1\/projects\/locket-4252a\/.+ header-remove If-None-Match
+http-request ^https?:\/\/firebaseremoteconfig\.googleapis\.com\/v1\/projects\/locket-4252a\/.+ header-remove if-modified-since
+http-request ^https?:\/\/firebaseremoteconfig\.googleapis\.com\/v1\/projects\/locket-4252a\/.+ header-remove If-Modified-Since
+http-request ^https?:\/\/firebaseremoteconfig\.googleapis\.com\/v1\/projects\/locket-4252a\/.+ header-remove x-goog-if-none-match
+
+# Xóa Cache / ETag trên Locket Camera API
+http-request ^https?:\/\/api\.locketcamera\.com\/.+ header-remove if-none-match
+http-request ^https?:\/\/api\.locketcamera\.com\/.+ header-remove If-None-Match
+http-request ^https?:\/\/api\.locketcamera\.com\/.+ header-remove if-modified-since
+http-request ^https?:\/\/api\.locketcamera\.com\/.+ header-remove If-Modified-Since
+
+[Script]
+# Locket Gold - Xóa Header RevenueCat và Firebase
+deleteHeader_RC = type=http-request,pattern=^https?:\/\/api\.revenuecat\.com\/.+\/(receipts|subscribers),script-path=YOUR_GITHUB_RAW_URL/deleteHeader_Firebase.js,timeout=60
+deleteHeader_Firebase = type=http-request,pattern=^https?:\/\/firebaseremoteconfig\.googleapis\.com\/v1\/projects\/locket-4252a\/.+,script-path=YOUR_GITHUB_RAW_URL/deleteHeader_RC.js,timeout=60
+
+# Locket Gold - Kích hoạt quyền thuê bao và tính năng 45s
+revenuecat = type=http-response,pattern=^https?:\/\/api\.revenuecat\.com\/.+\/(receipts|subscribers),script-path=YOUR_GITHUB_RAW_URL/evenuecat.js,requires-body=true,max-size=-1,timeout=60
+locket_rc = type=http-response,pattern=^https:\/\/firebaseremoteconfig\.googleapis\.com\/v1\/projects\/locket-4252a\/.+,script-path=YOUR_GITHUB_RAW_URL/locketfix.js,requires-body=true,max-size=-1,timeout=60
+
+# Locket Photobooth Engine
+locket_pb_req = type=http-request,pattern=^https?:\/\/(us-central1-locket-4252a\.cloudfunctions\.net|api\.locketcamera\.com)\/generateFilteredImage,script-path=YOUR_GITHUB_RAW_URL/locket_pb_req.js,requires-body=true,max-size=-1,timeout=60
+
+# Locket Huy hiệu Profile và Mạng lưới bạn bè VIP
+locket_change_profile = type=http-request,pattern=^https:\/\/api\.locketcamera\.com\/changeProfileInfo,script-path=YOUR_GITHUB_RAW_URL/locket_change_profile.js,timeout=60
+locket_filter_resp = type=http-response,pattern=^https?:\/\/api\.locketcamera\.com\/.+,requires-body=true,max-size=-1,script-path=YOUR_GITHUB_RAW_URL/locket_filter_resp.js,timeout=60
+
+[MITM]
+ca-passphrase = 9QkClI9j
+ca-p12 = MIIJqgIBAzCCCWkGCSqGSIb3DQEHAaCCCVoEgglWMIIJUjCCB9kGCSqGSIb3DQEHBqCCB8owggfGAgEAMIIHvwYJKoZIhvcNAQcBMF4GCSqGSIb3DQEFDTBRMDAGCSqGSIb3DQEFDDAjBBCw6UaNCF5ncpnFqJngTTdyAgEBMAwGCCqGSIb3DQIJBQAwHQYJYIZIAWUDBAEqBBBsfP0djZnhPqWx1CwIH00+gIIHUJsZKqs9ap0L8VACKWDfdjn8Puwcd2Dhooh4f+UYA8fVJGY9297L7yS8pRAfczUXAL2azbu4wMeqmcS3lJj6OHvKd7N4GSUc3ECwGTTyXgQB6Qw/S13k45gBW+YvY6IBenkY4shayY9jpPDrRDcyUbt1xs9vNXQ2b5y3C1+tAdiuTTAZnvMEpmFuPimnDbQZ6nGBECHISIVmKylRlq8kplAPJslL8iQiDPMVXQgj98JjY+E9RQYZK5RGFrnaJFup5rqQOFqmQCfWUAnRWLS4borJgwLQlGBjNgBTqAQcXer7hlq6vTj9Ct+HGkHkse2kRaPpv4xzOHEzOYOJ5uOOff4FetGgLMsmbQZBeYFru7T1/el5oDeUDjvpy5sIWDOd1fVk3R/QqlfZmtzknMQj5g4qXZ5Mf3O54+MbWgWrlTaDf702dafn5wpUsZ/wKZVWCleRiyEedFFQpLEXrGUjn4sidzcPTJSGQzhFklcYveSHbNS9NtiCn65/51VpmCdMM9gp+fZTxFM81GYa6390M+WMioR1n60mHa1YvKddKeC9Xbcpy/dzC3IXu4482CkfZKpj0ceSYrVapjRabJjwfeTFjuCn5xFJY56w5VRhVeuGZ2lTazm9ytV/pZgbgNAJDmR8mGm6dgcHaUzwLzK96RUAeHiyP7vzisSRvv78j6wRaQ2mM5QAsagDxuceyJwqloXgbjGlaQhIQ4EIWjEQIms32AQRY0OiNEPwC7g/VZkqwuJNV6lh6vfvUmgKQXxP2P75Uh+6WwLsdcdHrHkv+QBxE/Ni+eL39fiZu1ghO889+NuH62AXyedAw1txRqziOege7vfDlhhl96P/0yPitrRoyQxmQxwyPUFaACKzMZeayiBJjNNAm5ctocEwbJNQMcXIOyLhACJ5QFfxqh8T1w5U10nIejyS2IYEExkJ3PZXI96/FVl7r58q3Ze2EanSjYFJ7H03HQzx/Devk4b4b1y4T2lwsPUKlNn0X7tNGEmDSIKEdgHqXxra7DCpvjI4yOmek/zjKRm49Oa8VL6LC9mK7tKFoLuhH4RNzOc7Q58K28xh9dSYKGdLN4naJckuLKR0MDNvV4rBkrZ4axV69B3qQR0043ZqyiI0L4vg/ucIXCmBKnPbYGbA8oA2f23ESq+fWpA24CUF2XDLqTwasvyXXQBJYobF3adLsr1V4JeWb8dZqar0dFMULNs6KRy8+050JuD//QoNShLt801i4j/XQlhm6fnmMugbu4bE/Xp7bIXM3Sa4aHz7YDeYJ8pgQZ1fBKlWBiCda5okA4DxWGECSOeyocZEcKNBot1NdxmiZgWMADaDpt/PYNh3A5dZLpdxtM+brNyuLmtsXF3PnI3PE8fB0A+HJrPvdka31JD1jruWg8rsLpy0tubaGsnG/YbjSIImhmVExu/39rBWHzWALHIPMtn0prtUmc93Od5xX4GRy597ZpThd74ztWhXWi9sUY9i7LNKuHxxlhbUveajQ1UiAx0Jko4jVGHGNxgTVXr9V0poId/U/Pn1AO9ptXGrDBmDvXuzJVpB7K3/Yx734KZVw6B0qO1ZTRMnlbO0r7jpzkgZfqOs28OhOlL1umweNfT/NCKTyChuXn2q98PYn5sqoNzXNXfNi4AS2GMCkRXA80aGfZ89aTofEVttAo4JJPfyqJdby7UQ/bhoTQvsyyCSKkZD1MKAc9lg/gMwHH4nUD1uVQFrgPkUvYgAdC8nxu2SSoDcsbdJK5uHhIyjh4X+uCtduyB13pIFPvau/+BFXGpdMzkcSdayk6++gzH2mNsRnFqoox52uZ76aaEub6nucaSbf4gvMeYDYdt/EwxA86IAXt1CnvR2OdZgzt2pd76DI82DeAqgHxrA4F5Bd6eBKc9icYasMfgFJiUrZMotwUZgrviV+ht+x7ww1JG4P+ryfPUvXYFjCo3yoUIxSCbvdGUkad3WY3Nl7Ry6jUXiLNg9ejRCD+viFMsmQJtTY7hYDGEAuWYHIjTFL1IEvUM0b0PeviqZsEO8SuyDoCLsYHifRoQxfEK02XrzQEpdlR82gfpE6fNk4YV2Yz+4inbVwmdcjsZZpgIk8qGw/QabHg4aaZYc5O81OpjfRDe4WX9KT1FQTNhtUPDV/M+TScOMOzQz2eIdQ8h/Dsa5oqtztL7QCOoHIcpwYbutT2AZKGr7gfVBOZJb8g94FGgQZEEsTQPCnuZMyoPfp5apedszxwE5fuFfJYCQaTMJW9Yd6HleCXKScQCL6dfDGszZ9OeeD7gh/sl501q16DmTRpNnvLr+W6syEzEHT6yteaMilyw0K/FyWSP7ILAdxB9X/ll/Dlw6U0du1ObAZNWY4DHlSl3wqSxoUBKnFlM7ak/ndBeAI/L9dNOJZy/zBBmO+ZtRHLRY5/NvrfP1aeJJC2FJ2mb37zXA0UwR37+Kl8iWLnodJT07kU9BZpD2eW5bh0RhwsCiez7nlVqw9VhydgUOSFGFViKY5iRMUuCokzCCAXEGCSqGSIb3DQEHAaCCAWIEggFeMIIBWjCCAVYGCyqGSIb3DQEMCgECoIH2MIHzMF4GCSqGSIb3DQEFDTBRMDAGCSqGSIb3DQEFDDAjBBBngWzRHvXooVZx4jBDur4SAgEBMAwGCCqGSIb3DQIJBQAwHQYJYIZIAWUDBAEqBBCkH74zbMprhMJTA1ZDP6xrBIGQF27wdmbufVbNsGvforQZ7HMpN+wxTsMQENjqCVDhU9X9UcpHuzhDiqw7q3gVu6tsT95hAWLSDPybolkHh+AGGSYoJVUFIzIodCTCqSRToOAkJloL7T8h50kYC/4PMzugqz1Lv2Ch01TvfKTI5CkUWPK6PgEMjY708iJfuiEqHCRTWLTRQD7QQRR18smIfkjKMU4wIwYJKoZIhvcNAQkVMRYEFF2Wftgfg0rKvlpBxg2jnc0PUB3aMCcGCSqGSIb3DQEJFDEaHhgAUwBoAGEAZABvAHcAcgBvAGMAawBlAHQwODAhMAkGBSsOAwIaBQAEFGGAFmxf45GNCWNF39CY01h+wNTeBBD7LOFdfZBybaXwnK3NsfsOAgEB
+enable = true
+hostname = %APPEND% api.revenuecat.com, firebaseremoteconfig.googleapis.com, api.locketcamera.com, *.locketcamera.com, us-central1-locket-4252a.cloudfunctions.net
