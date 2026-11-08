@@ -141,12 +141,12 @@ Object.assign(obj.entries, {
             {
                 title: "Tiktok @iutdyy ✨",
                     body: "Nhớ Follow Kênh Ủng Hộ Mình Nhé 💛",
-                    imageURL: "https://ibb.co/qMGn607t"
+                    imageURL: "https://i.ibb.co/LDtpL0r1/1-CF7-E62-D-A3-F2-4-C2-F-80-D2-F847-D10-F808-E.png"
             }
         ],
         primary_button_title: "Xong",
         campaign: "locket_gold_welcome_v3",
-        start_at: "2026-02-28T00:00:00",
+        start_at: "2020-01-01T00:00:00",
         end_at: "2099-12-31T23:59:59",
         use_local_time_zone: true
     }),
